@@ -1,0 +1,17 @@
+name: email-triage-env
+version: 1.0
+description: Customer support email triage environment
+
+observation_space:
+  type: Observation
+
+action_space:
+  type: Action
+
+reward:
+  type: float
+
+tasks:
+  - easy
+  - medium
+  - hard
