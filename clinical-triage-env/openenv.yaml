@@ -1,0 +1,21 @@
+name: clinical-triage-env
+version: 1.0.0
+description: An OpenEnv-compliant environment for training and evaluating AI agents on emergency clinical decision-making.
+
+tasks:
+  - id: easy_vitals_triage
+    description: Vitals-Based Triage (Easy) — Assign ESI triage levels from vital signs
+    max_steps: 3
+    complexity: easy
+  - id: medium_workup_ordering
+    description: Diagnostic Workup Ordering (Medium) — Select appropriate labs, imaging, and consults
+    max_steps: 5
+    complexity: medium
+  - id: hard_differential_disposition
+    description: Differential Diagnosis & Disposition (Hard) — Synthesize complex cases into diagnosis + admission decisions
+    max_steps: 5
+    complexity: hard
+
+environment:
+  action_space: JSON
+  observation_space: JSON
