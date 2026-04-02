@@ -1,13 +1,19 @@
 [project]
 name = "email-triage-openenv"
 version = "0.1.0"
-description = "Email Triage OpenEnv for Scaler submission"
+description = "Email Triage OpenEnv"
 authors = [{name = "Sabarish"}]
+
 dependencies = [
     "fastapi",
     "uvicorn",
-    "requests"
+    "requests",
+    "gradio",
+    "openenv-core>=0.2.0"
 ]
+
+[project.scripts]
+server = "server.app:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]
