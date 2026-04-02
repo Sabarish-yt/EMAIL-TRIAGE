@@ -1,0 +1,6 @@
+name: email-triage-env
+
+tasks:
+  - easy_case
+  - medium_case
+  - hard_case
