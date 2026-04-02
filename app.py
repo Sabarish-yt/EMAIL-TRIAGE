@@ -1,14 +1,13 @@
 print("📧 Email Triage OpenEnv Starting...")
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Request
+from typing import Dict, Any
 import uuid
 
 app = FastAPI(title="Email Triage OpenEnv")
 
 # ==============================
-# Simple Environment Logic
+# ENVIRONMENT
 # ==============================
 
 class EmailTriageEnv:
@@ -34,21 +33,21 @@ class EmailTriageEnv:
     def step(self, action: Dict[str, Any]):
         self.step_count += 1
 
-        # simple scoring logic
-        reward = 0.0
-
+        # Reward logic
         if self.task_id == "easy_case":
-            reward = 1.0
+            reward_value = 1.0
         elif self.task_id == "medium_case":
-            reward = 0.7
+            reward_value = 0.7
         elif self.task_id == "hard_case":
-            reward = 0.9
+            reward_value = 0.9
+        else:
+            reward_value = 0.0
 
         self.done = True
 
         return (
-            {"result": "processed"},
-            {"total": reward},
+            {"result": "processed"},   # observation
+            {"total": reward_value},   # ✅ reward MUST be dict
             self.done,
             {}
         )
@@ -61,37 +60,26 @@ class EmailTriageEnv:
         }
 
 # ==============================
-# Request Models
-# ==============================
-
-class ResetRequest(BaseModel):
-    task_id: Optional[str] = "easy_case"
-    seed: Optional[int] = 42
-
-class StepRequest(BaseModel):
-    session_id: str
-    action: Dict[str, Any]
-
-# ==============================
-# Session Storage
+# SESSION STORAGE
 # ==============================
 
 sessions: Dict[str, EmailTriageEnv] = {}
 
 # ==============================
-# API Endpoints (SCALAR FIXED)
+# RESET (SCALAR SAFE)
 # ==============================
 
 @app.post("/reset")
-def reset_env(req: Optional[ResetRequest] = None):
+async def reset_env(request: Request):
     try:
-        # ✅ SCALAR FIX: allow empty body
-        task_id = "easy_case"
-        seed = 42
+        # Handle empty body safely
+        try:
+            data = await request.json()
+        except:
+            data = {}
 
-        if req:
-            task_id = req.task_id
-            seed = req.seed
+        task_id = data.get("task_id", "easy_case")
+        seed = data.get("seed", 42)
 
         env = EmailTriageEnv(task_id=task_id, seed=seed)
         obs = env.reset()
@@ -107,25 +95,42 @@ def reset_env(req: Optional[ResetRequest] = None):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# ==============================
+# STEP (VALIDATION FIXED)
+# ==============================
 
 @app.post("/step")
-def step_env(req: StepRequest):
-    if req.session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def step_env(request: Request):
+    try:
+        data = await request.json()
 
-    env = sessions[req.session_id]
-    obs, reward, done, info = env.step(req.action)
+        session_id = data.get("session_id")
+        action = data.get("action", {})
 
-    if done:
-        del sessions[req.session_id]
+        if session_id not in sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
 
-    return {
-        "observation": obs,
-        "reward": reward,
-        "done": done,
-        "info": info
-    }
+        env = sessions[session_id]
+        obs, reward, done, info = env.step(action)
 
+        if done:
+            del sessions[session_id]
+
+        return {
+            "observation": obs,
+            "reward": {
+                "total": reward.get("total", 0.0)
+            },
+            "done": done,
+            "info": info
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ==============================
+# STATE
+# ==============================
 
 @app.get("/state/{session_id}")
 def get_state(session_id: str):
@@ -133,3 +138,11 @@ def get_state(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     return sessions[session_id].state()
+
+# ==============================
+# ROOT (OPTIONAL)
+# ==============================
+
+@app.get("/")
+def home():
+    return {"message": "Email Triage OpenEnv is running"}
