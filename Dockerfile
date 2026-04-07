@@ -1,9 +1,16 @@
-FROM python:3.10
+FROM python:3.10-slim
 
 WORKDIR /app
 
+# Copy files
 COPY . .
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies (stable)
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
+# Expose port
+EXPOSE 7860
+
+# Run using main() (IMPORTANT for Scaler)
+CMD ["python", "-m", "server.app"]
