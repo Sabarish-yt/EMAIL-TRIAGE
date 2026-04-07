@@ -30,10 +30,10 @@ for task in tasks:
 
         # ✅ SAFE LLM CALL
         try:
-    response = client.chat.completions.create(
-        model=os.environ.get("MODEL_NAME", "gpt-4o-mini"),
-        messages=[{"role": "user", "content": "Handle email"}],
-        max_tokens=10
+            response = client.chat.completions.create(
+            model=os.environ.get("MODEL_NAME", "gpt-4o-mini"),
+            messages=[{"role": "user", "content": "Handle email"}],
+            max_tokens=10
     )
      except Exception:
           pass  # DO NOT CRASH
