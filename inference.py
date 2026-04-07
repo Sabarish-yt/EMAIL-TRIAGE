@@ -2,10 +2,12 @@ import os
 import requests
 from openai import OpenAI
 
-# ✅ Safe client
+# ✅ FIX: map Scaler env → OpenAI expected env
+os.environ["OPENAI_API_KEY"] = os.environ.get("API_KEY", "")
+
 client = OpenAI(
     base_url=os.environ.get("API_BASE_URL"),
-    api_key=os.environ.get("API_KEY")
+    api_key=os.environ.get("API_KEY")  # still pass explicitly
 )
 
 BASE_URL = "http://localhost:7860"
@@ -28,16 +30,13 @@ for task in tasks:
 
         # ✅ SAFE LLM CALL
         try:
-            response = client.chat.completions.create(
-                model=os.environ.get("MODEL_NAME", "gpt-4o-mini"),
-                messages=[
-                    {"role": "user", "content": f"Handle email task: {task}"}
-                ],
-                max_tokens=10
-            )
-        except Exception:
-            # ⚠️ DO NOT CRASH — fallback
-            pass
+    response = client.chat.completions.create(
+        model=os.environ.get("MODEL_NAME", "gpt-4o-mini"),
+        messages=[{"role": "user", "content": "Handle email"}],
+        max_tokens=10
+    )
+     except Exception:
+          pass  # DO NOT CRASH
 
         # STEP
         res = requests.post(f"{BASE_URL}/step", json={
