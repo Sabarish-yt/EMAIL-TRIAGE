@@ -1,32 +1,38 @@
 import requests
 
-BASE_URL = "https://sabaxr-sabarihv3.hf.space"
+BASE_URL = "http://localhost:7860"
 
-def run():
-    tasks = ["easy_case", "medium_case", "hard_case"]
-    total = 0
+tasks = ["easy_case", "medium_case", "hard_case"]
 
-    for t in tasks:
-        # RESET
-        r = requests.post(f"{BASE_URL}/reset", json={
-            "task_id": t,
-            "seed": 42
-        }).json()
+total = 0
+steps = 0
 
-        sid = r["session_id"]
+for task in tasks:
+    print(f"[START] task={task}", flush=True)
 
-        # ACTION
-        action = {"action_type": "escalate"}
+    # RESET
+    r = requests.post(f"{BASE_URL}/reset", json={
+        "task_id": task,
+        "seed": 42
+    }).json()
 
-        # STEP
-        res = requests.post(f"{BASE_URL}/step", json={
-            "session_id": sid,
-            "action": action
-        }).json()
+    session_id = r["session_id"]
 
-        total += res["reward"]["total"]
+    # ACTION
+    action = {"action_type": "escalate"}
 
-    print("Final Score:", total)
+    # STEP
+    res = requests.post(f"{BASE_URL}/step", json={
+        "session_id": session_id,
+        "action": action
+    }).json()
 
-if __name__ == "__main__":
-    run()
+    reward = res["reward"]["total"]
+    total += reward
+    steps += 1
+
+    print(f"[STEP] task={task} step=1 reward={reward}", flush=True)
+
+    print(f"[END] task={task} score={reward} steps=1", flush=True)
+
+print(f"Final Score: {total}", flush=True)
