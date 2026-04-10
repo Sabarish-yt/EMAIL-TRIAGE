@@ -35,20 +35,39 @@ def get_email(task):
     else:
         return "I will file a legal complaint if not resolved!"
 
+# ✅ FINAL FIXED REWARD FUNCTION
 def calculate_reward(task, action: Action):
+    # Default safe value
+    reward = 0.1
+
     if task == "easy_case":
-        reward = 1.0 if action.action_type == "ignore" else 0.0
+        if action.action_type == "ignore":
+            reward = 0.95
+        else:
+            reward = 0.2
+
     elif task == "medium_case":
-        reward = 0.7 if action.action_type == "escalate" else 0.2
+        if action.action_type == "escalate":
+            reward = 0.75
+        else:
+            reward = 0.25
+
     elif task == "hard_case":
-        reward = 0.9 if action.action_type == "escalate" else 0.3
-    else:
-        reward = 0.0
+        if action.action_type == "escalate":
+            reward = 0.85
+        else:
+            reward = 0.35
+
+    # ✅ Safety clamp (guarantees valid range)
+    if reward <= 0.0:
+        reward = 0.1
+    if reward >= 1.0:
+        reward = 0.99
 
     return {"total": reward}
 
 # =========================
-# RESET (SCALAR FIXED)
+# RESET ENDPOINT
 # =========================
 @app.post("/reset")
 async def reset_env(request: Request):
@@ -66,66 +85,60 @@ async def reset_env(request: Request):
         session_id = str(uuid.uuid4())
 
         sessions[session_id] = {
-            "task": task_id,
-            "step_count": 0
+            "task": task_id
         }
 
         return {
             "session_id": session_id,
             "observation": {
-                "email": get_email(task_id),
-                "step_count": 0
+                "email": get_email(task_id)
             }
         }
 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 # =========================
-# STEP (SCALAR VALIDATED)
+# STEP ENDPOINT
 # =========================
 @app.post("/step")
-def step_env(req: StepRequest):
-    if req.session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+async def step_env(req: StepRequest):
+    try:
+        if req.session_id not in sessions:
+            raise HTTPException(status_code=404, detail="Session not found")
 
-    env = sessions[req.session_id]
-    task = env["task"]
+        task = sessions[req.session_id]["task"]
 
-    env["step_count"] += 1
+        reward = calculate_reward(task, req.action)
 
-    reward = calculate_reward(task, req.action)
+        return {
+            "observation": {"status": "processed"},
+            "reward": reward,
+            "done": True,
+            "info": {}
+        }
 
-    # remove session after done
-    del sessions[req.session_id]
-
-    return {
-        "observation": {
-            "status": "processed"
-        },
-        "reward": reward,
-        "done": True,
-        "info": {}
-    }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # =========================
-# STATE
+# STATE ENDPOINT
 # =========================
 @app.get("/state/{session_id}")
 def get_state(session_id: str):
     if session_id not in sessions:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    return sessions[session_id]
+    return {"task": sessions[session_id]}
 
 # =========================
-# BASELINE RESULTS
+# BASELINE AGENT
 # =========================
 def run_baseline():
     results = {
-        "easy_case": 1.0,
-        "medium_case": 0.7,
-        "hard_case": 0.9
+        "easy_case": 0.95,
+        "medium_case": 0.75,
+        "hard_case": 0.85
     }
     total = sum(results.values())
     return results, total
@@ -136,12 +149,7 @@ def run_baseline():
 def run_demo():
     results, total = run_baseline()
 
-    return f"""# 📧 Email Triage OpenEnv is Running ✅
-
-## 🚀 System Status
-- API: Active
-- Environment: Ready
-- Tasks: Loaded
+    return f"""# 📧 Email Triage OpenEnv Running
 
 ## 📊 Results
 - Easy Case: {results['easy_case']}
@@ -158,16 +166,15 @@ demo = gr.Interface(
     title="📧 Email Triage OpenEnv AI System"
 )
 
-# mount gradio to root
+# Mount UI
 app = gr.mount_gradio_app(app, demo, path="/")
 
 # =========================
-# MAIN ENTRY (SCALAR FIX)
+# MAIN FUNCTION (REQUIRED)
 # =========================
 def main():
     import uvicorn
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860)
 
-# REQUIRED for multi-mode deployment
 if __name__ == "__main__":
     main()
